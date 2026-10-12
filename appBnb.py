@@ -1,3 +1,4 @@
+import random
 import pandas as pd
 import streamlit as st
 
@@ -7,36 +8,42 @@ st.set_page_config(
 
 st.title("⚽ Aplicación de Rotación de Puestos y Partidos")
 st.markdown(
-    "Gestiona la asignación justa de puestos, regalos y turnos asegurando cobertura total."
+    "Gestión exacta para 9 puestos y 9 personas con alternancia de descanso y"
+    " asignación aleatoria de regalos."
 )
 
-# --- 1. CONFIGURACIÓN DE PERSONAL ---
-st.sidebar.header("1. Personal Disponible")
-nombres_default = (
-    "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta, Pablo, Laura,"
-    " Roberto, Carmen"
-)
+# --- 1. CONFIGURACIÓN DE PERSONAL (Exactamente 9 personas) ---
+st.sidebar.header("1. Personal de Puestos (9 personas)")
+nombres_default = "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta"
 input_personal = st.sidebar.text_area(
-    "Introduce los nombres separados por comas:", nombres_default
+    "Introduce los 9 nombres separados por comas:", nombres_default
 )
 personal = [p.strip() for p in input_personal.split(",") if p.strip()]
 
-st.sidebar.info(f"Total de personas en la lista: {len(personal)}")
-
-# Definición de puestos operativos obligatorios (9 puestos en total)
-puestos_operativos = [
-    "Acceso 411 - 1",
-    "Acceso 411 - 2",
-    "Acceso 412 - 1",
-    "Acceso 412 - 2",
-    "Recibidor 411",
-    "Recibidor 412",
+# Los 9 puestos fijos exactos
+puestos = [
+    "Accesos 411 - 1",
+    "Accesos 411 - 2",
     "Sala 411",
+    "Recibidor 411",
+    "Ropero",
+    "Accesos 412 - 1",
+    "Accesos 412 - 2",
     "Sala 412",
-    "Ropero (Compartido)",
+    "Recibidor 412",
 ]
 
-# Inicializar el índice de rotación en la sesión si no existe
+# Puestos que van de verde (viendo el partido) en cada mitad
+puestos_verdes_t1 = [
+    "Accesos 411 - 1",
+    "Accesos 412 - 1",
+    "Ropero",
+    "Sala 411",
+    "Recibidor 412",
+]
+puestos_verdes_t2 = ["Accesos 411 - 2", "Accesos 412 - 2", "Recibidor 411", "Sala 412"]
+
+# Inicializar índice de rotación general entre partidos
 if "indice_rotacion" not in st.session_state:
   st.session_state["indice_rotacion"] = 0
 
@@ -44,58 +51,94 @@ if "indice_rotacion" not in st.session_state:
 st.markdown("---")
 st.header("2. Generar Asignación para el Partido")
 
-# Se necesitan al menos 11 personas (2 para regalos + 9 para cubrir los puestos de cada tiempo,
-# o idealmente más para rotar entre tiempos). Si hay menos de 9, avisamos.
-if st.button("🔄 Rotar Puestos (Avanzar 1 posición)"):
-  if len(personal) < 9:
+if st.button("🔄 Rotar Puestos y Partido"):
+  if len(personal) != 9:
     st.error(
-        "Se necesitan al menos 9 personas para cubrir todos los puestos"
-        " operativos obligatorios."
+        f"Has introducido {len(personal)} personas. Deben ser exactamente 9"
+        " para los 9 puestos."
     )
   else:
-    # Aplicar rotación desplazando la lista según el índice actual (mover un puesto a la derecha)
+    # 1. Seleccionar dos personas al azar para los regalos
+    regaladores = random.sample(personal, 2)
+
+    # 2. Rotar el orden general del equipo según el histórico de partidos
     shift = st.session_state["indice_rotacion"] % len(personal)
-    personal_rotado = personal[shift:] + personal[:shift]
+    equipo = personal[shift:] + personal[:shift]
 
-    # 1. Seleccionar a los 2 primeros para los regalos
-    regalos = personal_rotado[:2]
-    resto = personal_rotado[2:]
+    # Dividimos al equipo en dos grupos basándonos en tu regla:
+    # - Grupo Verde T1 (5 personas): Estarán en verde en el T1 y pasarán a rojo (trabajo) en el T2.
+    # - Grupo Rojo T1 (4 personas): Estarán en rojo (trabajo) en el T1 y pasarán a verde en el T2.
+    grupo_verde_t1 = equipo[:5]
+    grupo_rojo_t1 = equipo[5:]
 
-    # 2. Asignar puestos garantizando cobertura estricta para el Primer Tiempo
-    # Si el resto es menor que los puestos operativos, rellenamos cíclicamente para que NINGÚN puesto quede vacío.
-    asignados_t1 = []
-    for i in range(len(puestos_operativos)):
-      persona = resto[i % len(resto)]
-      asignados_t1.append(persona)
+    t1_rows = []
+    t2_rows = []
 
-    # 3. Para el Segundo Tiempo, desplazamos el resto una posición más para que cambien de puesto
-    resto_t2 = resto[1:] + resto[:1]
-    asignados_t2 = []
-    for i in range(len(puestos_operativos)):
-      persona = resto_t2[i % len(resto_t2)]
-      asignados_t2.append(persona)
+    # --- PRIMER TIEMPO ---
+    idx_v1 = 0
+    idx_r1 = 0
+    for puesto in puestos:
+      if puesto in puestos_verdes_t1:
+        persona = grupo_verde_t1[idx_v1]
+        estado = "Viendo"
+        idx_v1 += 1
+      else:
+        persona = grupo_rojo_t1[idx_r1]
+        estado = "Trabajando"
+        idx_r1 += 1
+      t1_rows.append({"Puesto": puesto, "Persona": persona, "Estado": estado})
 
-    # Guardar resultados en la sesión
+    # --- SEGUNDO TIEMPO ---
+    puestos_t2_ordenados = puestos[4:] + puestos[:4]
+    idx_r1_t2 = 0
+    idx_v1_t2 = 0
+
+    temp_t2 = []
+    for puesto in puestos_t2_ordenados:
+      if puesto in puestos_verdes_t2:
+        persona = grupo_rojo_t1[idx_r1_t2]
+        estado = "Viendo"
+        idx_r1_t2 += 1
+      else:
+        persona = grupo_verde_t1[idx_v1_t2]
+        estado = "Trabajando"
+        idx_v1_t2 += 1
+      temp_t2.append({"Puesto": puesto, "Persona": persona, "Estado": estado})
+
+    t2_rows = sorted(temp_t2, key=lambda x: puestos.index(x["Puesto"]))
+
+    # Guardar en sesión
     st.session_state["resultado"] = {
-        "regalos": regalos,
-        "t1": list(zip(puestos_operativos, asignados_t1)),
-        "t2": list(zip(puestos_operativos, asignados_t2)),
+        "regalos": regaladores,
+        "t1": t1_rows,
+        "t2": t2_rows,
     }
-
-    # Incrementar el índice para la siguiente vez que se pulse el botón
     st.session_state["indice_rotacion"] += 1
-    st.success("¡Rotación efectuada con éxito (todos movidos un puesto)!")
+    st.success("¡Rotación y selección de regalos generadas con éxito!")
+
+
+# --- FUNCIÓN DE ESTILO PARA COLORES (Oculta la columna de control) ---
+def destacar_estado(row):
+  if row["Estado"] == "Viendo":
+    return [
+        "background-color: #d4edda; color: #155724; font-weight: bold;"
+    ] * len(row)  # Verde para partido
+  else:
+    return [
+        "background-color: #ffcccc; color: #990000; font-weight: bold;"
+    ] * len(row)  # Rojo para trabajando
+
 
 # --- 3. VISUALIZACIÓN DE RESULTADOS ---
 if "resultado" in st.session_state:
   res = st.session_state["resultado"]
 
+  # Mostrar encargados de los regalos
   st.subheader("🎁 Encargados de los Regalos")
-  col_r1, col_r2 = st.columns(2)
-  with col_r1:
-    st.metric(label="Responsable Regalos 1", value=res["regalos"][0])
-  with col_r2:
-    st.metric(label="Responsable Regalos 2", value=res["regalos"][1])
+  st.info(
+      f"**{res['regalos'][0]}** y **{res['regalos'][1]}** son los encargados de"
+      " llevar los regalos en este partido."
+  )
 
   st.markdown("---")
 
@@ -103,18 +146,25 @@ if "resultado" in st.session_state:
 
   with col_t1:
     st.subheader("⏱️ Primer Tiempo")
-    df_t1 = pd.DataFrame(res["t1"], columns=["Puesto", "Asignado"])
-    st.dataframe(df_t1, use_container_width=True, hide_index=True)
+    df_t1 = pd.DataFrame(res["t1"])
+    # Aplicamos estilo y ocultamos la columna 'Estado' para que no se vea
+    df_t1_styled = (
+        df_t1.style.apply(destacar_estado, axis=1)
+        .hide(subset=["Estado"], axis="columns")
+    )
+    st.dataframe(df_t1_styled, use_container_width=True, hide_index=True)
 
   with col_t2:
     st.subheader("⏱️ Segundo Tiempo")
-    df_t2 = pd.DataFrame(res["t2"], columns=["Puesto", "Asignado"])
-    st.dataframe(df_t2, use_container_width=True, hide_index=True)
+    df_t2 = pd.DataFrame(res["t2"])
+    df_t2_styled = (
+        df_t2.style.apply(destacar_estado, axis=1)
+        .hide(subset=["Estado"], axis="columns")
+    )
+    st.dataframe(df_t2_styled, use_container_width=True, hide_index=True)
 
-  # Validación estricta
-  st.markdown("---")
-  st.subheader("🛡️ Validación de Reglas")
-  st.success(
-      "✅ Cobertura completa garantizada: Ningún puesto de Accesos, Recibidores,"
-      " Sala o Ropero se queda desocupado en ninguna de las dos partes."
+  st.markdown(
+      "*Nota: Las filas en **verde** muestran a quienes ven el partido. Quien"
+      " está en rojo en el primer tiempo pasa a verde en el segundo, y"
+      " viceversa, cambiando de puesto sin repetir.*"
   )
