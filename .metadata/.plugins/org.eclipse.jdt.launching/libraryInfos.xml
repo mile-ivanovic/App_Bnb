@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<libraryInfos>
+    <libraryInfo home="/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home" version="22.0.2"/>
+    <libraryInfo home="/private/var/folders/7_/65rhy6q12v3gpfszzczc0m9c0000gq/T/AppTranslocation/37F9FD3C-5ED7-4EB5-9365-B1A4F8DD4D97/d/Eclipse.app/Contents/Eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.macosx.x86_64_21.0.8.v20250724-1412/jre" version="21.0.8"/>
+    <libraryInfo home="/private/var/folders/7_/65rhy6q12v3gpfszzczc0m9c0000gq/T/AppTranslocation/37F9FD3C-5ED7-4EB5-9365-B1A4F8DD4D97/d/Eclipse.app/Contents/Eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.macosx.x86_64_21.0.8.v20250724-1412" version="21.0.8">
+        <bootpath>
+            <entry path="null"/>
+        </bootpath>
+        <extensionDirs>
+            <entry path="null"/>
+        </extensionDirs>
+        <endorsedDirs>
+            <entry path="null"/>
+        </endorsedDirs>
+    </libraryInfo>
+</libraryInfos>

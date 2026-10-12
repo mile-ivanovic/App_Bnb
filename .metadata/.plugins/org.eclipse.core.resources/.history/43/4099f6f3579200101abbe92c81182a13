@@ -1,0 +1,38 @@
+package calc.test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import calc.Division;
+
+public class DivisionTest {
+
+	Division division;
+	
+	@BeforeEach
+	public void setUp() {
+		division = new Division(20.0);
+	}
+	
+	@Test
+	public void testGetDivision() {
+		double resultado = division.getDivision(4.0, 2.0);
+		assertEquals(2, resultado, "If we divide 4 by 2 then we get" + resultado);
+	}
+	
+	@Test
+	public void testDivide() {
+		double resultado = division.divide(4.0);
+		assertEquals(5.0,resultado, "20 divided by 4 sould be" + resultado);
+		
+	}
+	
+//	@Test
+//	public void testDividenForZero() {
+//		double resultado = division.divide(0.0);
+//		assertNull(resultado, "Division for zero should be Null");
+//	}
+	
+}
