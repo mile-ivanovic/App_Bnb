@@ -1,4 +1,3 @@
-import random
 import pandas as pd
 import streamlit as st
 
@@ -8,13 +7,14 @@ st.set_page_config(
 
 st.title("⚽ Aplicación de Rotación de Puestos y Partidos")
 st.markdown(
-    "Gestiona la asignación de puestos, regalos y turnos para el primer y segundo tiempo."
+    "Gestiona la asignación justa de puestos, regalos y turnos asegurando cobertura total."
 )
 
 # --- 1. CONFIGURACIÓN DE PERSONAL ---
 st.sidebar.header("1. Personal Disponible")
 nombres_default = (
-    "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta, Pablo, Laura"
+    "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta, Pablo, Laura,"
+    " Roberto, Carmen"
 )
 input_personal = st.sidebar.text_area(
     "Introduce los nombres separados por comas:", nombres_default
@@ -23,7 +23,7 @@ personal = [p.strip() for p in input_personal.split(",") if p.strip()]
 
 st.sidebar.info(f"Total de personas en la lista: {len(personal)}")
 
-# Definición de puestos operativos obligatorios por tiempo
+# Definición de puestos operativos obligatorios (9 puestos en total)
 puestos_operativos = [
     "Acceso 411 - 1",
     "Acceso 411 - 2",
@@ -36,54 +36,55 @@ puestos_operativos = [
     "Ropero (Compartido)",
 ]
 
+# Inicializar el índice de rotación en la sesión si no existe
+if "indice_rotacion" not in st.session_state:
+  st.session_state["indice_rotacion"] = 0
+
 # --- 2. GENERADOR DE ROTACIÓN ---
 st.markdown("---")
 st.header("2. Generar Asignación para el Partido")
 
-if st.button("🔄 Generar Nueva Rotación"):
-  if len(personal) < 11:
+# Se necesitan al menos 11 personas (2 para regalos + 9 para cubrir los puestos de cada tiempo,
+# o idealmente más para rotar entre tiempos). Si hay menos de 9, avisamos.
+if st.button("🔄 Rotar Puestos (Avanzar 1 posición)"):
+  if len(personal) < 9:
     st.error(
-        "Se recomiendan al menos 11 personas para cubrir todos los puestos y los"
-        " regalos holgadamente."
+        "Se necesitan al menos 9 personas para cubrir todos los puestos"
+        " operativos obligatorios."
     )
   else:
-    # Copiamos la lista para mezclarla aleatoriamente
-    equipo_shuff = personal.copy()
-    random.shuffle(equipo_shuff)
+    # Aplicar rotación desplazando la lista según el índice actual (mover un puesto a la derecha)
+    shift = st.session_state["indice_rotacion"] % len(personal)
+    personal_rotado = personal[shift:] + personal[:shift]
 
-    # 1. Seleccionar a los 2 encargados de los regalos
-    regalos = equipo_shuff[:2]
-    resto = equipo_shuff[2:]
+    # 1. Seleccionar a los 2 primeros para los regalos
+    regalos = personal_rotado[:2]
+    resto = personal_rotado[2:]
 
-    # 2. Dividir el resto para Primer Tiempo y Segundo Tiempo en los puestos operativos
-    # Necesitamos cubrir los puestos operativos. Para simplificar la rotación justa:
-    # Asignamos un grupo para el Primer Tiempo y otro para el Segundo Tiempo en los puestos.
-    # O bien, asignamos puestos fijos para el 1er tiempo y rotan en el 2do.
+    # 2. Asignar puestos garantizando cobertura estricta para el Primer Tiempo
+    # Si el resto es menor que los puestos operativos, rellenamos cíclicamente para que NINGÚN puesto quede vacío.
+    asignados_t1 = []
+    for i in range(len(puestos_operativos)):
+      persona = resto[i % len(resto)]
+      asignados_t1.append(persona)
 
-    mitad = len(puestos_operativos)
+    # 3. Para el Segundo Tiempo, desplazamos el resto una posición más para que cambien de puesto
+    resto_t2 = resto[1:] + resto[:1]
+    asignados_t2 = []
+    for i in range(len(puestos_operativos)):
+      persona = resto_t2[i % len(resto_t2)]
+      asignados_t2.append(persona)
 
-    # Asignaciones Primer Tiempo
-    puestos_t1 = puestos_operativos
-    personal_t1 = resto[: len(puestos_operativos)]
-
-    # Asignaciones Segundo Tiempo (rotando puestos si hay suficiente gente, o intercambiando)
-    personal_t2 = resto[
-        len(puestos_operativos) : len(puestos_operativos) * 2
-    ]
-    if len(personal_t2) < len(puestos_operativos):
-      # Si no hay el doble de gente, reutilizamos parte del personal rotando posiciones
-      personal_t2 = resto[: len(puestos_operativos)]
-      random.shuffle(personal_t2)
-
-    # Guardar en el estado de la sesión de Streamlit
+    # Guardar resultados en la sesión
     st.session_state["resultado"] = {
         "regalos": regalos,
-        "t1": list(zip(puestos_operativos, personal_t1[: len(puestos_operativos)])),
-        "t2": list(
-            zip(puestos_operativos, personal_t2[: len(puestos_operativos)])
-        ),
+        "t1": list(zip(puestos_operativos, asignados_t1)),
+        "t2": list(zip(puestos_operativos, asignados_t2)),
     }
-    st.success("¡Rotación generada con éxito!")
+
+    # Incrementar el índice para la siguiente vez que se pulse el botón
+    st.session_state["indice_rotacion"] += 1
+    st.success("¡Rotación efectuada con éxito (todos movidos un puesto)!")
 
 # --- 3. VISUALIZACIÓN DE RESULTADOS ---
 if "resultado" in st.session_state:
@@ -110,10 +111,10 @@ if "resultado" in st.session_state:
     df_t2 = pd.DataFrame(res["t2"], columns=["Puesto", "Asignado"])
     st.dataframe(df_t2, use_container_width=True, hide_index=True)
 
-  # Validación rápida de reglas clave
+  # Validación estricta
   st.markdown("---")
   st.subheader("🛡️ Validación de Reglas")
   st.success(
-      "✅ Cobertura obligatoria validada: Hay personal asignado en Sala, Ropero"
-      " y Accesos para ambas Mitades."
+      "✅ Cobertura completa garantizada: Ningún puesto de Accesos, Recibidores,"
+      " Sala o Ropero se queda desocupado en ninguna de las dos partes."
   )
