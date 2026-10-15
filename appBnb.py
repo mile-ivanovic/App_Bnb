@@ -8,25 +8,28 @@ st.set_page_config(
 
 st.title("⚽ Aplicación de Rotación de Puestos y Partidos")
 st.markdown(
-    "Gestión exacta para 9 puestos y 9 personas con alternancia de descanso y"
+    "Gestión exacta para 10 puestos y 10 personas con alternancia de descanso y"
     " asignación aleatoria de regalos."
 )
 
-# --- 1. CONFIGURACIÓN DE PERSONAL (Exactamente 9 personas) ---
-st.sidebar.header("1. Personal de Puestos (9 personas)")
-nombres_default = "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta"
+# --- 1. CONFIGURACIÓN DE PERSONAL (Exactamente 10 personas) ---
+st.sidebar.header("1. Personal de Puestos (10 personas)")
+nombres_default = (
+    "Ana, Carlos, Elena, Javier, Lucía, Marcos, Sofía, Diego, Marta, Pablo"
+)
 input_personal = st.sidebar.text_area(
-    "Introduce los 9 nombres separados por comas:", nombres_default
+    "Introduce los 10 nombres separados por comas:", nombres_default
 )
 personal = [p.strip() for p in input_personal.split(",") if p.strip()]
 
-# Los 9 puestos fijos exactos
+# Los 10 puestos fijos exactos (incluyendo Ropero 2)
 puestos = [
     "Accesos 411 - 1",
     "Accesos 411 - 2",
     "Sala 411",
     "Recibidor 411",
     "Ropero",
+    "Ropero 2",
     "Accesos 412 - 1",
     "Accesos 412 - 2",
     "Sala 412",
@@ -34,6 +37,7 @@ puestos = [
 ]
 
 # Puestos que van de verde (viendo el partido) en cada mitad
+# Primer tiempo: Ropero 2 está ausente de esta lista, por lo que sale en ROJO (trabajando)
 puestos_verdes_t1 = [
     "Accesos 411 - 1",
     "Accesos 412 - 1",
@@ -41,7 +45,14 @@ puestos_verdes_t1 = [
     "Sala 411",
     "Recibidor 412",
 ]
-puestos_verdes_t2 = ["Accesos 411 - 2", "Accesos 412 - 2", "Recibidor 411", "Sala 412"]
+# Segundo tiempo: Ropero 2 está incluido aquí, por lo que sale en VERDE (viendo el partido)
+puestos_verdes_t2 = [
+    "Accesos 411 - 2",
+    "Accesos 412 - 2",
+    "Recibidor 411",
+    "Sala 412",
+    "Ropero 2",
+]
 
 # Inicializar índice de rotación general entre partidos
 if "indice_rotacion" not in st.session_state:
@@ -52,10 +63,10 @@ st.markdown("---")
 st.header("2. Generar Asignación para el Partido")
 
 if st.button("🔄 Rotar Puestos y Partido"):
-  if len(personal) != 9:
+  if len(personal) != 10:
     st.error(
-        f"Has introducido {len(personal)} personas. Deben ser exactamente 9"
-        " para los 9 puestos."
+        f"Has introducido {len(personal)} personas. Deben ser exactamente 10"
+        " para los 10 puestos."
     )
   else:
     # 1. Seleccionar dos personas al azar para los regalos
@@ -65,9 +76,9 @@ if st.button("🔄 Rotar Puestos y Partido"):
     shift = st.session_state["indice_rotacion"] % len(personal)
     equipo = personal[shift:] + personal[:shift]
 
-    # Dividimos al equipo en dos grupos basándonos en tu regla:
+    # Dividimos al equipo en dos grupos de 5:
     # - Grupo Verde T1 (5 personas): Estarán en verde en el T1 y pasarán a rojo (trabajo) en el T2.
-    # - Grupo Rojo T1 (4 personas): Estarán en rojo (trabajo) en el T1 y pasarán a verde en el T2.
+    # - Grupo Rojo T1 (5 personas): Estarán en rojo (trabajo) en el T1 y pasarán a verde en el T2.
     grupo_verde_t1 = equipo[:5]
     grupo_rojo_t1 = equipo[5:]
 
@@ -89,7 +100,7 @@ if st.button("🔄 Rotar Puestos y Partido"):
       t1_rows.append({"Puesto": puesto, "Persona": persona, "Estado": estado})
 
     # --- SEGUNDO TIEMPO ---
-    puestos_t2_ordenados = puestos[4:] + puestos[:4]
+    puestos_t2_ordenados = puestos[5:] + puestos[:5]
     idx_r1_t2 = 0
     idx_v1_t2 = 0
 
@@ -147,7 +158,6 @@ if "resultado" in st.session_state:
   with col_t1:
     st.subheader("⏱️ Primer Tiempo")
     df_t1 = pd.DataFrame(res["t1"])
-    # Aplicamos estilo y ocultamos la columna 'Estado' para que no se vea
     df_t1_styled = (
         df_t1.style.apply(destacar_estado, axis=1)
         .hide(subset=["Estado"], axis="columns")
